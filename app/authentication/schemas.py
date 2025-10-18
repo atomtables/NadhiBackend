@@ -1,13 +1,12 @@
-# models.py
+# schemas.py
 from datetime import datetime
 from sqlalchemy import String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import BaseModel
-from app.images.models import ImageModel
+from app.database import BaseSchema
 
 
-class UserModel(BaseModel):
+class UserSchema(BaseSchema):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -17,8 +16,8 @@ class UserModel(BaseModel):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
-    images: Mapped[list["ImageModel"]] = relationship(
-        "ImageModel",
+    images: Mapped[list["ImageSchema"]] = relationship(
+        "ImageSchema",
         back_populates="user",
         cascade="all, delete-orphan"
     )
