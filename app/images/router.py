@@ -6,7 +6,7 @@ from PIL import Image
 from collections import defaultdict
 
 from fastapi import APIRouter, File, UploadFile, Form
-from geopy.geocoders import Nominatim  # type: ignore
+from geopy.geocoders import Nominatim
 from sqlalchemy import select
 
 from app.images.schemas import ImageSchema
@@ -44,13 +44,12 @@ async def upload_image(
     sessions.commit()
     sessions.refresh(record)
 
-    # These values should not be None since we just set them from form data
     return ImageUploadOut(
         id=record.id,
         file_name=record.file_name,
-        latitude=record.latitude,  # We know this is not None from the form
-        longitude=record.longitude,  # We know this is not None from the form
-        altitude=record.altitude,  # We know this is not None from the form
+        latitude=record.latitude,
+        longitude=record.longitude,
+        altitude=record.altitude,
         created_at=record.created_at
     )
 
@@ -111,7 +110,7 @@ async def get_images_by_county(state_code: str) -> dict[str, list[ImageUploadOut
             # Check if this image is in the requested state
             if state and county and isinstance(state, str) and isinstance(county, str):
                 # Get ISO code for state matching
-                iso_code = address.get('ISO3166-2-lvl4', '')  # type: ignore
+                iso_code = address.get('ISO3166-2-lvl4', '')
                 if not isinstance(iso_code, str):
                     iso_code = ''
                     
@@ -129,9 +128,9 @@ async def get_images_by_county(state_code: str) -> dict[str, list[ImageUploadOut
                         ImageUploadOut(
                             id=image.id,
                             file_name=image.file_name,
-                            latitude=image.latitude,  # We already checked it's not None
-                            longitude=image.longitude,  # We already checked it's not None
-                            altitude=image.altitude,  # Can be None, that's okay now
+                            latitude=image.latitude,
+                            longitude=image.longitude,
+                            altitude=image.altitude,
                             created_at=image.created_at
                         )
                     )

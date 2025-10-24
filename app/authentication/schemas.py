@@ -1,6 +1,6 @@
 # schemas.py
 from datetime import datetime
-from sqlalchemy import String, Float, ForeignKey, DateTime
+from sqlalchemy import String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import BaseSchema
@@ -16,8 +16,14 @@ class UserSchema(BaseSchema):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
-    images: Mapped[list["ImageSchema"]] = relationship(
+    images = relationship(
         "ImageSchema",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    volunteers = relationship(
+        "VolunteerSchema",
         back_populates="user",
         cascade="all, delete-orphan"
     )
