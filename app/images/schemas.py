@@ -27,28 +27,28 @@ class ImageSchema(BaseSchema):
 
     # ai classification isn't instantly ready so get picture in the database and wait for
     # ai to finish getting the classification done on the flip side
-    # classification = relationship(
-    #     "ImageClassificationSchema",
-    #     back_populates="images",
-    #     uselist=False,
-    #     cascade="all, delete-orphan"
-    # )
+    classification = relationship(
+        "ImageClassificationSchema",
+        back_populates="images",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
 
-# class ImageClassificationSchema(BaseSchema):
-#     __tablename__ = "image_classifications"
+class ImageClassificationSchema(BaseSchema):
+    __tablename__ = "image_classifications"
 
-#     # foreign key (no need for back reference)
-#     image_id: Mapped[int] = mapped_column(
-#         ForeignKey("images.id"),
-#         primary_key=True
-#     )
+    image_id: Mapped[int] = mapped_column(
+        ForeignKey("images.id"),
+        primary_key=True
+    )
 
-#     flood_level: Mapped[int] = mapped_column(Integer, nullable=False)
-#     damage: Mapped[str] = mapped_column(String(100), nullable=False)
+    flood_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    danger_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    annoted_file_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-#     images = relationship(
-#         "ImageSchema",
-#         back_populates="image_classifications",
-#         uselist=False
-#     )
+    images = relationship(
+        "ImageSchema",
+        back_populates="classification",
+        uselist=False
+    )

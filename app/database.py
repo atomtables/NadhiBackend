@@ -1,13 +1,15 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session
+from sqlalchemy.orm import declarative_base, Session
 
+SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
 
-class BaseSchema(DeclarativeBase):
-    pass
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"check_same_thread": False} 
+)
 
+BaseSchema = declarative_base()
 
-# TODO: change out for non-in-memory database
-engine = create_engine("sqlite://", echo=True)
 sessions = Session(engine)
 
 def seed():

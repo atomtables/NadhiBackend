@@ -1,22 +1,66 @@
 import io
 import os
 import random
+from turtle import back
+import requests
+import base64
 from datetime import datetime
 from PIL import Image
 from collections import defaultdict
 
-from fastapi import APIRouter, File, UploadFile, Form
+from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks
 from geopy.geocoders import Nominatim
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.images.schemas import ImageSchema
+from app.images.schemas import ImageClassificationSchema
 from app.images.types import ImageUploadOut
 from app.database import sessions
 
+AI_BACKEND_URL = "http://localhost:5000/predict"
+
 router = APIRouter()
+
+def process_image_with_ai(image_id: int, file_path: str, file_name: str):
+    try:
+        with open(file_path, "rb") as f:
+            files = {'image': (file_name, f, 'image/jpeg')}
+            response = requests.post(AI_BACKEND_URL, files=files)
+            response.raise_for_status()
+            
+            ai_data = response.json()
+            
+            image_base_id = os.path.splitext(file_name)[0]
+            annotated_file_name = f'{image_base_id}_annotated.png'
+            annotated_file_path = f'images/{annotated_file_name}'
+            
+            base64_string = ai_data['annotated_image'].split(',')[1]
+            annotated_image_data = base64.b64decode(base64_string)
+            
+            with open(annotated_file_path, "wb") as f:
+                f.write(annotated_image_data)
+
+            detected_classes = [d['class'] for d in ai_data.get('detections', [])]
+            flood_level = 1 if 'flooding' in detected_classes else 0
+
+            classification_record = ImageClassificationSchema(
+                image_id=image_id,
+                flood_level=flood_level,
+                danger_level=ai_data['danger_level'],
+                annoted_file_name=annotated_file_name
+            )
+            
+            # Use a new session for the background task
+            sessions.add(classification_record)
+            sessions.commit()
+
+    except requests.RequestException as e:
+        print(f"Background task failed for image {image_id}: {e}")
 
 @router.post("/upload")
 async def upload_image(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     latitude: str = Form(...),
     longitude: str = Form(...),
@@ -27,8 +71,10 @@ async def upload_image(
     
     image_id = str(random.randbytes(8).hex())
     file_name = f'{image_id}.jpg'
+    file_path = f'images/{file_name}'
     
-    with Image.open(io.BytesIO(await file.read())) as img:
+    image_content = await file.read()
+    with Image.open(io.BytesIO(image_content)) as img:
         rgb_img = img.convert('RGB')
         rgb_img.save(f'images/{file_name}', format="JPEG")
 
@@ -44,6 +90,8 @@ async def upload_image(
     sessions.commit()
     sessions.refresh(record)
 
+    background_tasks.add_task(process_image_with_ai, record.id, file_path, file_name)
+
     return ImageUploadOut(
         id=record.id,
         file_name=record.file_name,
@@ -55,21 +103,22 @@ async def upload_image(
 
 
 @router.get("/by-state/{state_code}")
-async def get_images_by_county(state_code: str) -> dict[str, list[ImageUploadOut]]:
+async def get_images_by_county(
+    state_code: str,
+    ) -> dict[str, list[ImageUploadOut]]:
     """
     Get all images grouped by county for a given US state.
-    
     Args:
         state_code: Two-letter US state code (e.g., 'NJ', 'NY', 'CA')
-    
     Returns:
         Dictionary mapping county names to lists of images
     """
     state_code = state_code.upper()
     
     # Get all images from database
-    stmt = select(ImageSchema)
-    images = sessions.execute(stmt).scalars().all()
+    stmt = select(ImageSchema).options(joinedload(ImageSchema.classification))
+    results = sessions.execute(stmt)
+    images = results.scalars().unique().all()
     
     if not images:
         return {}
@@ -124,16 +173,8 @@ async def get_images_by_county(state_code: str) -> dict[str, list[ImageUploadOut
                     # Clean county name (remove " County" suffix if present)
                     county_name = county.replace(' County', '').strip()
                     
-                    county_images[county_name].append(
-                        ImageUploadOut(
-                            id=image.id,
-                            file_name=image.file_name,
-                            latitude=image.latitude,
-                            longitude=image.longitude,
-                            altitude=image.altitude,
-                            created_at=image.created_at
-                        )
-                    )
+                    image_out = ImageUploadOut.model_validate(image)
+                    county_images[county_name].append(image_out)
         except Exception as e:
             # Skip images that fail geocoding
             print(f"Error geocoding image {image.id}: {str(e)}")
