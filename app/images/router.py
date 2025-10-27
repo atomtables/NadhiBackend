@@ -8,14 +8,13 @@ from datetime import datetime
 from PIL import Image
 from collections import defaultdict
 
-from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks
+from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException
 from geopy.geocoders import Nominatim
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from app.images.schemas import ImageSchema
-from app.images.schemas import ImageClassificationSchema
-from app.images.types import ImageUploadOut
+from app.images.schemas import ImageSchema, ImageClassificationSchema, FinalImageSchema
+from app.images.types import ImageUploadOut, FinalImageOut, ImageOut
 from app.database import sessions
 
 AI_BACKEND_URL = "http://localhost:5000/predict"
@@ -58,33 +57,62 @@ def process_image_with_ai(image_id: int, file_path: str, file_name: str):
     except requests.RequestException as e:
         print(f"Background task failed for image {image_id}: {e}")
 
-@router.post("/upload")
+@router.post("/upload/{type}")
 async def upload_image(
+    type: str,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     latitude: str = Form(...),
     longitude: str = Form(...),
-    altitude: int = Form(...)
-) -> ImageUploadOut:
+    altitude: float = Form(...)
+) -> ImageOut:
+    # Validate file extension
+    allowed_extensions = {'.jpeg', '.jpg', '.heic', '.heif', '.png', '.webp'}
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No filename provided"
+        )
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not allowed. Allowed types are: {', '.join(allowed_extensions)}"
+        )
+
     if not os.path.exists('images'):
         os.mkdir('images')
     
     image_id = str(random.randbytes(8).hex())
-    file_name = f'{image_id}.jpg'
+    file_name = f'{image_id}{file_ext}'
     file_path = f'images/{file_name}'
     
     image_content = await file.read()
     with Image.open(io.BytesIO(image_content)) as img:
-        rgb_img = img.convert('RGB')
-        rgb_img.save(f'images/{file_name}', format="JPEG")
+        # Convert to RGB if the image has an alpha channel
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            rgb_img = img.convert('RGB')
+            rgb_img.save(f'images/{file_name}', quality=95)
+        else:
+            # Save in original format if it's already RGB/grayscale
+            img.save(f'images/{file_name}', quality=95)
 
-    record = ImageSchema(
-        file_name=file_name,
-        latitude=float(latitude),
-        longitude=float(longitude),
-        altitude=float(altitude),
-        created_at=datetime.now()
-    )
+    if type == "final":
+        record = FinalImageSchema(
+            file_name=file_name,
+            question1_answer="",
+            question2_answer="",
+            question3_answer="",
+            created_at=datetime.now()
+        )
+    else:
+        record = ImageSchema(
+            file_name=file_name,
+            latitude=float(latitude),
+            longitude=float(longitude),
+            altitude=float(altitude),
+            created_at=datetime.now()
+        )
     
     sessions.add(record)
     sessions.commit()
@@ -92,20 +120,31 @@ async def upload_image(
 
     background_tasks.add_task(process_image_with_ai, record.id, file_path, file_name)
 
-    return ImageUploadOut(
-        id=record.id,
-        file_name=record.file_name,
-        latitude=record.latitude,
-        longitude=record.longitude,
-        altitude=record.altitude,
-        created_at=record.created_at
-    )
+    if type == "final":
+        return FinalImageOut(
+            id=record.id,
+            file_name=record.file_name,
+            question1_answer=record.question1_answer,
+            question2_answer=record.question2_answer,
+            question3_answer=record.question3_answer,
+            created_at=record.created_at
+        )
+    else:
+        return ImageUploadOut(
+            id=record.id,
+            file_name=record.file_name,
+            latitude=record.latitude,
+            longitude=record.longitude,
+            altitude=record.altitude,
+            created_at=record.created_at
+        )
 
 
-@router.get("/by-state/{state_code}")
+@router.get("/by-state/{type}/{state_code}")
 async def get_images_by_county(
+    type: str,
     state_code: str,
-    ) -> dict[str, list[ImageUploadOut]]:
+    ) -> dict[str, list[ImageOut]]:
     """
     Get all images grouped by county for a given US state.
     Args:
@@ -116,7 +155,10 @@ async def get_images_by_county(
     state_code = state_code.upper()
     
     # Get all images from database
-    stmt = select(ImageSchema).options(joinedload(ImageSchema.classification))
+    if type == "final":
+        stmt = select(FinalImageSchema).options(joinedload(FinalImageSchema.classification))
+    else:
+        stmt = select(ImageSchema).options(joinedload(ImageSchema.classification))
     results = sessions.execute(stmt)
     images = results.scalars().unique().all()
     
@@ -127,7 +169,7 @@ async def get_images_by_county(
     geolocator = Nominatim(user_agent="congressional_image_app")
     
     # Group images by county
-    county_images: dict[str, list[ImageUploadOut]] = defaultdict(list)
+    county_images: dict[str, list[ImageOut]] = defaultdict(list)
     
     for image in images:
         # Skip images without coordinates (schema allows nullable)
@@ -173,7 +215,10 @@ async def get_images_by_county(
                     # Clean county name (remove " County" suffix if present)
                     county_name = county.replace(' County', '').strip()
                     
-                    image_out = ImageUploadOut.model_validate(image)
+                    if type == "final":
+                        image_out = FinalImageOut.model_validate(image)
+                    else:
+                        image_out = ImageUploadOut.model_validate(image)
                     county_images[county_name].append(image_out)
         except Exception as e:
             # Skip images that fail geocoding

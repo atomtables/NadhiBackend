@@ -1,4 +1,5 @@
 from datetime import datetime
+from unittest.mock import Base
 from sqlalchemy import Column, String, Float, ForeignKey, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +35,29 @@ class ImageSchema(BaseSchema):
         cascade="all, delete-orphan"
     )
 
+class FinalImageSchema(BaseSchema):
+    __tablename__ = "final_images"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    question1_answer: Mapped[str] = mapped_column(String(255), nullable=False)
+    question2_answer: Mapped[str] = mapped_column(String(255), nullable=False)
+    question3_answer: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
+
+    user = relationship(
+        "UserSchema",
+        back_populates="final_images",
+        passive_deletes=True
+    )
+
+    classification = relationship(
+        "ImageClassificationSchema",
+        back_populates="final_images",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
 class ImageClassificationSchema(BaseSchema):
     __tablename__ = "image_classifications"

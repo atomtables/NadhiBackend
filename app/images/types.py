@@ -1,4 +1,5 @@
 import datetime
+from tkinter import Image
 from pydantic import BaseModel
 
 class ImageClassificationOut(BaseModel):
@@ -20,3 +21,17 @@ class ImageUploadOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class FinalImageOut(BaseModel):
+    id: int
+    file_name: str
+    question1_answer: str
+    question2_answer: str
+    question3_answer: str
+    created_at: datetime.datetime
+    classification: ImageClassificationOut | None = None
+
+    class Config:
+        from_attributes = True
+
+type ImageOut = ImageUploadOut | FinalImageOut
