@@ -6,6 +6,7 @@ from app.database import BaseSchema, engine
 from app.authentication.router import router as auth_router
 from app.images.router import router as image_router
 from app.volunteering.router import router as volunteer_router
+from app.data.router import router as data_router
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -23,3 +24,4 @@ app = FastAPI(debug=True, lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(image_router)
 app.include_router(volunteer_router)
+app.include_router(data_router)
