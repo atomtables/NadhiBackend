@@ -1,5 +1,4 @@
 import datetime
-from tkinter import Image
 from pydantic import BaseModel
 
 class ImageClassificationOut(BaseModel):
@@ -33,5 +32,3 @@ class FinalImageOut(BaseModel):
 
     class Config:
         from_attributes = True
-
-type ImageOut = ImageUploadOut | FinalImageOut
