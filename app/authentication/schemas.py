@@ -22,6 +22,12 @@ class UserSchema(BaseSchema):
         cascade="all, delete-orphan"
     )
 
+    final_images = relationship(
+        "FinalImageSchema",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
     volunteers = relationship(
         "VolunteerSchema",
         back_populates="user",

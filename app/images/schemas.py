@@ -46,6 +46,8 @@ class FinalImageSchema(BaseSchema):
     question3_answer: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
 
+    user_id = Column(Integer, ForeignKey('users.id'))
+
     user = relationship(
         "UserSchema",
         back_populates="final_images",
@@ -53,7 +55,7 @@ class FinalImageSchema(BaseSchema):
     )
 
     classification = relationship(
-        "ImageClassificationSchema",
+        "FinalImageClassificationSchema",
         back_populates="final_images",
         uselist=False,
         cascade="all, delete-orphan"
@@ -73,6 +75,24 @@ class ImageClassificationSchema(BaseSchema):
 
     images = relationship(
         "ImageSchema",
+        back_populates="classification",
+        uselist=False
+    )
+
+class FinalImageClassificationSchema(BaseSchema):
+    __tablename__ = "final_image_classifications"
+
+    image_id: Mapped[int] = mapped_column(
+        ForeignKey("final_images.id"),
+        primary_key=True
+    )
+
+    flood_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    danger_level: Mapped[int] = mapped_column(Integer, nullable=False)
+    annoted_file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    final_images = relationship(
+        "FinalImageSchema",
         back_populates="classification",
         uselist=False
     )

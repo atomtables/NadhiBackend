@@ -1,7 +1,6 @@
 import io
 import os
 import random
-from turtle import back
 import requests
 import base64
 from datetime import datetime
@@ -72,8 +71,8 @@ async def process_image(file) -> tuple[str, str]:
             detail=f"File type not allowed. Allowed types are: {', '.join(allowed_extensions)}"
         )
 
-    if not os.path.exists('images'):
-        os.mkdir('images')
+    if not os.path.exists('serverImages'):
+        os.mkdir('serverImages')
     
     image_id = str(random.randbytes(8).hex())
     file_name = f'{image_id}{file_ext}'
@@ -137,7 +136,7 @@ async def upload_final_image(
 
     file_name, file_path = await process_image(file)
 
-    record = ImageSchema(
+    record = FinalImageSchema(
         file_name=file_name,
         question1_answer=str(q1),
         question2_answer=str(q2),
