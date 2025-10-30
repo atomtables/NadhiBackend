@@ -30,7 +30,7 @@ async def get_station_id(observation_stations_url: str) -> str:
         raise ValueError("No observation stations found")
     return stations[0]['properties']['stationIdentifier']
 
-async def get_latest_observation(latitude: float, longitude: float, station_id: str) -> tuple:
+async def get_latest_observation(latitude: float, longitude: float, station_id: str) -> tuple[str, str, int, str]:
     observations_url = f"{nws_url}/stations/{station_id}/observations/latest"
     response = requests.get(observations_url)
     response.raise_for_status()
@@ -41,7 +41,6 @@ async def get_latest_observation(latitude: float, longitude: float, station_id: 
     # precipitationLastHour is sometimes nested / missing; default to 0
     rainfall = properties.get('precipitationLastHour', {}).get('value', 0) or 0
 
-    # Query active alerts for the point
     alert_url = f"{nws_url}/alerts/active?point={latitude},{longitude}"
     alert_response = requests.get(alert_url)
     alert_response.raise_for_status()
