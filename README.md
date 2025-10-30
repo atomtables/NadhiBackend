@@ -12,3 +12,5 @@ subsection are in /schemas.py, and are then imported by /database.py to create t
 To run this app, you should run `pip install -r requirements.txt` and then use the `fastapi run` utility
 provided by the FastAPI package for testing. You can test each individual endpoint by going to the
 `/docs` endpoint in a web browser.
+
+### P.S. Nadhi, translated from Tamil, means: "river". It's also the acronym
