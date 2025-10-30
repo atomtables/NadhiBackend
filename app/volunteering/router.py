@@ -9,6 +9,7 @@ from app.database import sessions
 
 router = APIRouter()
 
+# API endpoint for someone who needs help
 @router.post("/volunteer/{latitude}/{longitude}")
 async def upload_volunteer(
     latitude: float,
@@ -55,6 +56,7 @@ async def upload_volunteer(
         longitude = record.longitude
     )
     
+# API endpoint to get list of people who need help
 @router.get("/volunteer/{latitude}/{longitude}")
 async def get_volunteer_posts(
     longitude: float,
@@ -64,7 +66,7 @@ async def get_volunteer_posts(
     stmt = select(VolunteerSchema)
     volunteerPosts = sessions.execute(stmt).scalars().all()
 
-    posts = []
+    posts: list[VolunteerPostOut] = []
     for volunteerPost in volunteerPosts:
         lat1 = float(latitude)
         lon1 = float(longitude)

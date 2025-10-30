@@ -1,14 +1,14 @@
 import io
 import os
 import random
-import requests
+import requests  # type: ignore
 import base64
 from datetime import datetime
 from PIL import Image
 from collections import defaultdict
 
 from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim  # type: ignore
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -56,7 +56,7 @@ def process_image_with_ai(image_id: int, file_path: str, file_name: str):
     except requests.RequestException as e:
         print(f"Background task failed for image {image_id}: {e}")
 
-async def process_image(file) -> tuple[str, str]:
+async def process_image(file: UploadFile) -> tuple[str, str]:
     # Validate file extension
     allowed_extensions = {'.jpeg', '.jpg', '.heic', '.heif', '.png', '.webp'}
     if not file.filename:
@@ -90,6 +90,7 @@ async def process_image(file) -> tuple[str, str]:
             
     return file_name, file_path
 
+# API endpoint to upload an image during the flood
 @router.post("/upload/flood")
 async def upload_flood_image(
     background_tasks: BackgroundTasks,
@@ -125,6 +126,7 @@ async def upload_flood_image(
     )
 
 
+# API endpoint to upload final assessments
 @router.post("/upload/final")
 async def upload_final_image(
     background_tasks: BackgroundTasks,
@@ -159,6 +161,7 @@ async def upload_final_image(
         created_at=record.created_at
     )
 
+# API request to get all data by county
 @router.get("/by-state/{state_code}")
 async def get_images_by_county(
     type: str | None,
@@ -207,9 +210,12 @@ async def get_images_by_county(
             if not raw_data or not isinstance(raw_data, dict):
                 continue
                 
-            address = raw_data.get('address', {})  # type: ignore
-            if not isinstance(address, dict):
+            address_data = raw_data.get('address', {})  # type: ignore
+            if not isinstance(address_data, dict):
                 continue
+            
+            # Cast to dict[str, Any] for better type checking
+            address: dict[str, object] = address_data  # type: ignore
                     
             state = address.get('state')  # type: ignore
             county = address.get('county')  # type: ignore
@@ -217,14 +223,14 @@ async def get_images_by_county(
             # Check if this image is in the requested state
             if state and county and isinstance(state, str) and isinstance(county, str):
                 # Get ISO code for state matching
-                iso_code = address.get('ISO3166-2-lvl4', '')
-                if not isinstance(iso_code, str):
-                    iso_code = ''
+                iso_code_value = address.get('ISO3166-2-lvl4', '')  # type: ignore
+                if not isinstance(iso_code_value, str):
+                    iso_code_value = ''
                     
                 state_matches = (
                     state_code in state.upper() or 
                     state.upper() in state_code or
-                    iso_code.endswith(state_code)
+                    iso_code_value.endswith(state_code)
                 )
                 
                 if state_matches:

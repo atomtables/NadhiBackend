@@ -1,4 +1,4 @@
-import requests
+import requests  # type: ignore
 from fastapi import APIRouter
 
 from app.data.types import DataOut
@@ -77,6 +77,7 @@ async def get_latest_observation(latitude: float, longitude: float, station_id: 
 
     return (temperature, humidity, rainfall, prediction)
 
+# Returns data for the dashboard of the page, such as active flood risks.
 @router.get("/data/{latitude}/{longitude}")
 async def get_data(
     latitude: float,
@@ -91,7 +92,7 @@ async def get_data(
         station_id
     )
 
-    temperature = celcius_to_fahrenheit(temperature)
+    temperature = celcius_to_fahrenheit(temperature) # type: ignore
 
     # Store data in the database
     record = DataSchema(
